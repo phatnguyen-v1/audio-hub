@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Audio Hub",
+  "version": "0.1.0",
+  "description": "Shows each tab playing sound in the Audio Hub desktop app, with pause, mute and volume.",
+  "minimum_chrome_version": "116",
+  "permissions": ["tabs", "scripting", "alarms", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" }
+}

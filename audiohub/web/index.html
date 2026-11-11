@@ -45,6 +45,9 @@ input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
 .meter i{display:block;height:100%;width:0;background:var(--meter);transition:width .15s linear}
 .recent .meter{display:none}
 .master{margin-bottom:2px}
+.row.child{margin-left:18px;padding:6px 0 6px 10px;border-top:0;border-left:2px solid var(--line)}
+.row.child .name{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.child .meter{display:none}
 </style>
 </head>
 <body>
@@ -121,8 +124,11 @@ function makeRow(machine, key){
 }
 
 function updateRow(n, r, section){
+  // A tab shown without its browser above it says which browser it's in.
+  n.classList.toggle("child", !!r.parent && !r.parentName);
   n.querySelector(".name").textContent = r.name;
-  const track = [r.title, r.artist].filter(Boolean).join(" – ");
+  n.querySelector(".name").title = r.name;
+  const track = [r.parentName, r.title, r.artist].filter(Boolean).join(r.title ? " – " : " · ");
   let sub;
   if (section === "playing") sub = track || "Playing";
   else sub = [track, r.status, ago(r.ago)].filter(Boolean).join(" · ");
@@ -130,8 +136,9 @@ function updateRow(n, r, section){
   n.querySelector(".sub").title = sub;
 
   const playing = section === "playing";
-  n.querySelector(".prev").hidden = !(playing && r.media);
-  n.querySelector(".next").hidden = !(playing && r.media);
+  const skip = playing && r.media && !r.parent; // tabs have no previous/next
+  n.querySelector(".prev").hidden = !skip;
+  n.querySelector(".next").hidden = !skip;
   const pp = n.querySelector(".pp");
   pp.hidden = !r.media;
   pp.textContent = playing ? "⏸" : "▶";

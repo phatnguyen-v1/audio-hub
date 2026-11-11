@@ -13,6 +13,21 @@ One mixer for the sound on all my machines. Windows only for now; the Mac agent 
   - A closed app is removed at once. ✕ hides an item until it plays again.
   - Volume set on an app with no open stream is applied when it starts again.
 
+- **Browser tabs** (with the extension): each tab that played sound gets its own row under
+  its browser, with pause/play, mute and volume. Without it, Windows only sees one player
+  and one sound stream for the whole of Chrome.
+
+## Browser extension
+
+Chrome, Edge and Brave: open `chrome://extensions`, turn on Developer mode, click
+**Load unpacked** and pick the `extension` folder. It connects to Audio Hub on
+`127.0.0.1:8765` and keeps retrying while the app isn't running. After changing its
+code, click the reload icon on the extension.
+
+- Tab volume sets the level of the page's video/audio, so the site's own slider won't move.
+- Tabs have no level meter; Chrome doesn't give per-tab levels.
+- Only Audio Hub's own window and browser extensions can connect; websites are refused.
+
 ## Run
 
 ```bat

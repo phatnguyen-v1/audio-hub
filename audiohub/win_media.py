@@ -34,11 +34,14 @@ class WinMedia:
         for s in self._mgr.get_sessions():
             try:
                 aumid = s.source_app_user_model_id
-                key = media_key(aumid)
+                base = media_key(aumid)
+                # An app with several players gets one row each: spotify, spotify~2, ...
+                key, n = base, 1
+                while key in out:
+                    n += 1
+                    key = f"{base}~{n}"
                 st = int(s.get_playback_info().playback_status)
                 status = "playing" if st == PLAYING else "paused" if st == PAUSED else "stopped"
-                if key in out and out[key]["status"] == "playing":
-                    continue  # several players from one app: keep the playing one
                 try:
                     p = await s.try_get_media_properties_async()
                     title, artist = p.title or "", p.artist or ""
@@ -46,7 +49,7 @@ class WinMedia:
                     title = artist = ""
             except Exception:
                 continue
-            out[key] = {"name": nice_name(key), "title": title, "artist": artist, "status": status}
+            out[key] = {"name": nice_name(base), "title": title, "artist": artist, "status": status}
             sessions[key] = s
         self._sessions = sessions
         return out
