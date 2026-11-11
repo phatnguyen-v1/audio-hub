@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audio Hub</title>
+<style>
+:root{
+  --bg:#f4f4f6; --card:#fff; --fg:#1c1c1f; --muted:#6c6c74; --line:#e2e2e8;
+  --accent:#2f6fed; --meter:#2fb862; --chip:#ececf1; --danger:#d93a3a;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#161618; --card:#222226; --fg:#ececf0; --muted:#9a9aa4; --line:#323238;
+         --accent:#6a95ff; --meter:#37d06f; --chip:#2e2e34; --danger:#ff6b6b; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.35 "Segoe UI",system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:12px 16px 24px}
+.offline{display:none;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:var(--danger);color:#fff;font-size:13px}
+body.down .offline{display:block}
+.machine{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px}
+.mhead{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.mname{font-weight:600;font-size:15px}
+.dev{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h3{margin:14px 0 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.row{padding:8px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.top{display:flex;align-items:center;gap:8px}
+.info{flex:1;min-width:0}
+.name{font-weight:600}
+.sub{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent .name{font-weight:500;color:var(--muted)}
+.btns{display:flex;gap:2px}
+button{font:inherit;border:0;background:transparent;color:var(--fg);border-radius:6px;cursor:pointer;
+       min-width:28px;height:28px;padding:0 6px}
+button:hover{background:var(--chip)}
+button[hidden]{display:none}
+.vol{display:flex;align-items:center;gap:8px;margin-top:4px}
+.vol[hidden]{display:none}
+input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+.pct{width:36px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.mute.on{color:var(--danger)}
+.meter{height:3px;border-radius:2px;background:var(--chip);margin-top:4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--meter);transition:width .15s linear}
+.recent .meter{display:none}
+.master{margin-bottom:2px}
+</style>
+</head>
+<body>
+<main>
+  <div class="offline">Not connected to the Audio Hub agent. Retrying…</div>
+  <div id="machines"></div>
+</main>
+<script>
+const OS_ICON = {windows: "🖥", mac: "🍎"};
+let ws, dragging = null;
+
+function send(o){ if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+function connect(){
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => document.body.classList.remove("down");
+  ws.onmessage = e => render(JSON.parse(e.data));
+  ws.onclose = () => { document.body.classList.add("down"); setTimeout(connect, 1000); };
+}
+
+function el(html){ const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+
+function ago(s){
+  if (s == null) return "";
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  return `${Math.floor(s/3600)}h ago`;
+}
+
+// A volume slider + mute button + percentage, reused for master and app rows.
+function volumeControls(node, onVolume, onMute){
+  const range = node.querySelector("input"), mute = node.querySelector(".mute");
+  range.addEventListener("pointerdown", () => dragging = range);
+  range.addEventListener("change", () => { if (dragging === range) dragging = null; });
+  range.addEventListener("input", () => { node.querySelector(".pct").textContent = range.value + "%"; onVolume(range.value / 100); });
+  mute.addEventListener("click", () => onMute(!mute.classList.contains("on")));
+}
+function setVolume(node, volume, muted){
+  const range = node.querySelector("input");
+  if (dragging !== range) {
+    range.value = Math.round(volume * 100);
+    node.querySelector(".pct").textContent = range.value + "%";
+  }
+  const mute = node.querySelector(".mute");
+  mute.classList.toggle("on", !!muted);
+  mute.textContent = muted ? "🔇" : "🔊";
+  mute.title = muted ? "Unmute" : "Mute";
+}
+const VOL_HTML = `<div class="vol"><button class="mute"></button><input type="range" min="0" max="100"><span class="pct"></span></div>`;
+
+function makeRow(machine, key){
+  const n = el(`<div class="row">
+    <div class="top">
+      <div class="info"><div class="name"></div><div class="sub"></div></div>
+      <div class="btns">
+        <button class="prev" title="Previous">⏮</button>
+        <button class="pp"></button>
+        <button class="next" title="Next">⏭</button>
+        <button class="x" title="Remove from Recent">✕</button>
+      </div>
+    </div>
+    ${VOL_HTML}
+    <div class="meter"><i></i></div>
+  </div>`);
+  const c = cmd => () => send({machine, key, cmd});
+  n.querySelector(".prev").onclick = c("prev");
+  n.querySelector(".pp").onclick = c("playpause");
+  n.querySelector(".next").onclick = c("next");
+  n.querySelector(".x").onclick = c("dismiss");
+  volumeControls(n.querySelector(".vol"),
+    v => send({machine, key, cmd: "volume", value: v}),
+    m => send({machine, key, cmd: "mute", value: m}));
+  return n;
+}
+
+function updateRow(n, r, section){
+  n.querySelector(".name").textContent = r.name;
+  const track = [r.title, r.artist].filter(Boolean).join(" – ");
+  let sub;
+  if (section === "playing") sub = track || "Playing";
+  else sub = [track, r.status, ago(r.ago)].filter(Boolean).join(" · ");
+  n.querySelector(".sub").textContent = sub;
+  n.querySelector(".sub").title = sub;
+
+  const playing = section === "playing";
+  n.querySelector(".prev").hidden = !(playing && r.media);
+  n.querySelector(".next").hidden = !(playing && r.media);
+  const pp = n.querySelector(".pp");
+  pp.hidden = !r.media;
+  pp.textContent = playing ? "⏸" : "▶";
+  pp.title = playing ? "Pause" : "Resume";
+  n.querySelector(".x").hidden = playing;
+
+  const vol = n.querySelector(".vol");
+  vol.hidden = r.volume == null;
+  if (r.volume != null) setVolume(vol, r.volume, r.muted);
+  const level = r.muted ? 0 : Math.min(1, Math.sqrt(r.peak));
+  n.querySelector(".meter i").style.width = (level * 100).toFixed(1) + "%";
+}
+
+// Keyed list update: keep DOM nodes so clicks and drags aren't interrupted by refreshes.
+function syncList(container, rows, machine, section){
+  const cache = container._nodes || (container._nodes = new Map());
+  const seen = new Set();
+  rows.forEach((r, i) => {
+    let n = cache.get(r.key);
+    if (!n) { n = makeRow(machine, r.key); cache.set(r.key, n); }
+    updateRow(n, r, section);
+    if (container.children[i] !== n) container.insertBefore(n, container.children[i] || null);
+    seen.add(r.key);
+  });
+  for (const [k, n] of cache) if (!seen.has(k)) { n.remove(); cache.delete(k); }
+  container.parentNode.querySelector(`.empty.${section}-empty`).hidden = rows.length > 0;
+}
+
+const machineNodes = new Map();
+function render(state){
+  const root = document.getElementById("machines");
+  for (const m of state.machines) {
+    let n = machineNodes.get(m.id);
+    if (!n) {
+      n = el(`<section class="machine">
+        <div class="mhead"><span class="mname"></span><span class="dev"></span></div>
+        <div class="master">${VOL_HTML}</div>
+        <h3>▶ Now playing</h3>
+        <div class="empty playing-empty">Nothing playing</div>
+        <div class="list playing"></div>
+        <h3>⏱ Recent</h3>
+        <div class="empty recent-empty">Nothing recent</div>
+        <div class="list recent"></div>
+      </section>`);
+      volumeControls(n.querySelector(".master .vol"),
+        v => send({machine: m.id, cmd: "master_volume", value: v}),
+        x => send({machine: m.id, cmd: "master_mute", value: x}));
+      machineNodes.set(m.id, n);
+      root.appendChild(n);
+    }
+    n.querySelector(".mname").textContent = `${OS_ICON[m.os] || "💻"} ${m.name}`;
+    n.querySelector(".dev").textContent = m.master.device;
+    setVolume(n.querySelector(".master .vol"), m.master.volume, m.master.muted);
+    syncList(n.querySelector(".list.playing"), m.playing, m.id, "playing");
+    syncList(n.querySelector(".list.recent"), m.recent, m.id, "recent");
+  }
+}
+
+connect();
+</script>
+</body>
+</html>
