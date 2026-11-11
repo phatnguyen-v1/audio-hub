@@ -20,9 +20,20 @@ One mixer for the sound on all my machines. Windows only for now; the Mac agent 
 ## Browser extension
 
 Chrome, Edge and Brave: open `chrome://extensions`, turn on Developer mode, click
-**Load unpacked** and pick the `extension` folder. It connects to Audio Hub on
-`127.0.0.1:8765` and keeps retrying while the app isn't running. After changing its
-code, click the reload icon on the extension.
+**Load unpacked** and pick the `extension` folder. After changing its code, click the
+reload icon on the extension.
+
+It works on its own, without the desktop app:
+
+- **Toolbar popup**: Now playing and Recent tabs with play/pause, mute and volume;
+  click a tab to go to it, ◉ pauses all the other tabs, ⏸ All pauses everything.
+- **Badge** with the number of tabs making sound.
+- **Only one tab plays at a time** (option): starting a tab pauses the others.
+- **Shortcuts**: Alt+Shift+P plays/pauses the current or last paused tab; "Pause all"
+  can be given a key at `chrome://extensions/shortcuts`.
+
+When the desktop app is running it also sends the tabs there (`127.0.0.1:8765`) and
+keeps retrying while it isn't; the popup has a switch to turn this off.
 
 - Tab volume sets the level of the page's video/audio, so the site's own slider won't move.
 - Tabs have no level meter; Chrome doesn't give per-tab levels.

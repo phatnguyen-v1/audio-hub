@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audio Hub</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <span class="title">Audio Hub</span>
+    <span class="hub" id="hub"></span>
+    <button id="pauseAll" title="Pause every tab">⏸ All</button>
+  </header>
+
+  <h3>▶ Now playing</h3>
+  <div class="empty" id="playingEmpty">No tab is playing</div>
+  <div class="list" id="playing"></div>
+
+  <h3>⏱ Recent</h3>
+  <div class="empty" id="recentEmpty">Nothing recent</div>
+  <div class="list" id="recent"></div>
+
+  <footer>
+    <label><input type="checkbox" id="onePlayer"> Only one tab plays at a time</label>
+    <label><input type="checkbox" id="hubSetting"> Send tabs to the Audio Hub desktop app</label>
+    <a href="#" id="shortcuts">Keyboard shortcuts…</a>
+  </footer>
+  <script src="popup.js"></script>
+</body>
+</html>
